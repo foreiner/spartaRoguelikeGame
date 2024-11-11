@@ -1,8 +1,5 @@
-import chalk from 'chalk';
-import figlet from 'figlet';
-import readlineSync from 'readline-sync';
-import {start} from "./server_sample.js";
+import { execSync } from 'child_process';
+import {server_Main} from "./gameScripts/server_sample.js";
 
-
-
-start();
+execSync('chcp 65001');
+server_Main.start(true);
