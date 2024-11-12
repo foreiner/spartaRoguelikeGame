@@ -1,67 +1,95 @@
 import chalk from 'chalk';
 import readlineSync from 'readline-sync';
 import { takeinput } from "./control_inputs.js";
+import init_game from "./init_game.js";
+
+let battle_status;
+
+export let game_main = {
+  battle_status,
+  startGame,
+}
 
 function rand_number() {
   return parseInt(Math.random() * 100);
 }
+function Battle_statusTOJson(battlestatus){
+  return JSON.stringify( {
+    player : battlestatus.player,
+    monster : battlestatus.monster,
+    difficulty : battlestatus.difficulty,
+    floor : battlestatus.floor,
+  });
+}
+function JsonTOBattle_status(saved_data, battlestatus = battle_status){
+  return JSON.parse( {
+    player : battlestatus.player,
+    monster : battlestatus.monster,
+    difficulty : battlestatus.difficulty,
+    floor : battlestatus.floor,
+  });
+}
 
-class Player {
+
+class Battle_status{
+   #_player = new Actor_constructor();
+   #_monster;
+   #_difficulty = 1;
+   #_floor = 1;
+   constructor(player, monster, difficulty, floor){
+    this.#_player = player;
+    this.#_monster = monster;
+    this.#_difficulty = difficulty;
+    this.#_floor = floor;
+   }
+   get player(){
+    return this.#_player;
+   }
+   set player(player){
+    this.#_player = player;
+   }
+   get monster(){
+    return this.#_monster;
+   }
+   set monster(monster){
+    this.#_monster = monster;
+   }
+   get difficulty(){
+    return this.#_difficulty;
+   }
+   set difficulty(difficulty){
+    this.#_difficulty = difficulty;
+   }
+   get floor(){
+    return this.#_floor;
+   }
+   set floor(floor){
+    this.#_floor = floor;
+   }
+}
+
+class Actor_constructor {
   #_hp;
   constructor() {
-    this._hp = 100;
+    this.#_hp = 100;
   }
   set hp(hp) {
-    this._hp = hp > 100 ? 100 : hp;
+    this.#_hp = hp;
   }
   get hp() {
-    return this._hp;
+    return this.#_hp;
   }
 
-  attack(enemy) {
-    // 플레이어의 공격
+  attack(defender) {
+    // 공격
     if (rand_number() > 19) {
-      enemy.hp -= 30;
+      defender.hp -= 30;
       return `공격을 성공했습니다.`;
     }
     else {
       return `공격을 실패했습니다.`;
     }
   }
-}
-
-class Monster {
-  constructor(stage) {
-    this._hp = 100 + (stage * 20);
-  }
-  set hp(hp) {
-    this._hp = hp;
-  }
-  get hp() {
-    return this._hp;
-  }
-
-  attack(enemy) {
-    // 몬스터의 공격
-    if (rand_number() > 50) {
-      enemy.hp -= 20;
-      return `공격을 받았습니다.`;
-    }
-    else {
-      return `공격을 회피했습니다.`;
-    }
-  }
-}
-function dealingDamage(attacker, defender) {
-
-  if (rand_number() > 50) {
-    enemy.hp -= 20;
-    return `공격을 받았습니다.`;
-  }
-  else {
-    return `공격을 회피했습니다.`;
-  }
-
 }
 
 function displayStatus(stage, player, monster) {
@@ -81,14 +109,16 @@ function displayStatus(stage, player, monster) {
 const battle = async (stage, player, monster) => {
   let logs = [];
 
-  while (player.hp > 0) {
+  while (true) {
+    if (monster.hp <= 0) return 1;
+    if (player.hp <= 0) return 2;
     console.clear();
     displayStatus(stage, player, monster);
 
     logs.forEach((log) => console.log(log));
     let choice
     do {
-      choice = takeinput('당신의 선택은? : ', `\n1. 공격한다 2. 아무것도 하지않는다. 3. 도망간다.`);
+      choice = takeinput_battle('당신의 선택은? : ', `\n1. 공격한다 2. 아무것도 하지않는다. 3. 도망간다.`);
       switch (choice) {
         case '1':
           logs.push(chalk.green(`${choice}를 선택하셨습니다.`));
@@ -116,39 +146,41 @@ const battle = async (stage, player, monster) => {
     while (choice == 'P')
 
 
-    if (monster.hp <= 0) return 1;
-    logs.push(chalk.green(monster.attack(player)));
-    if (player.hp <= 0) return 2;
+    logs.push(chalk.red(monster.attack(player)));
 
     // 플레이어의 선택에 따라 다음 행동 처리
   }
 };
 
-export async function startGame() {
+
+function takeinput_battle(questionstring, question_list) {
+  return takeinput(questionstring, question_list, battle_status);
+}
+
+async function startGame(saved_battle_status) {
   console.clear();
-  const player = new Player();
-  let stage = 1;
+  battle_status = saved_battle_status ?? new Battle_status(new Actor_constructor(), new Actor_constructor(), init_game.game_setting.difficulty, 1);
 
-  while (stage <= 10) {
-    const monster = new Monster(stage);
+  while (battle_status.floor <= 10) {
+    battle_status.monster = new Actor_constructor();
 
-    switch (await battle(stage, player, monster)) {
+    switch (await battle(battle_status.floor, battle_status.player, battle_status.monster)) {
       case 1:
-        player.hp += 50;
-        stage++;
-        takeinput('엔터 입력시 다음으로 이동', '승리! hp + 50');
+        battle_status.player.hp += 50;
+        battle_status.floor++;
+        takeinput_battle('엔터 입력시 다음으로 이동', '승리! hp + 50');
         break;
       case 2:
 
-        takeinput('엔터 입력시 종료', '눈앞이 흐려진다.');
+        takeinput_battle('엔터 입력시 종료', '눈앞이 흐려진다.');
         return;
 
         break;
       case 3:
-        player.hp += 20;
-        stage++;
+        battle_status.player.hp += 20;
+        battle_status._floor++;
 
-        takeinput('엔터 입력시 다음으로 이동',
+        takeinput_battle('엔터 입력시 다음으로 이동',
           `3을 선택하셨습니다.
 도망에 성공했습니다. hp + 20
 같은 층의 다른 적에게 도전합니다.`);
